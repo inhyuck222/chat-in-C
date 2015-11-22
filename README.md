@@ -1,1 +1,1 @@
-# chat-in-C
+chat in C
