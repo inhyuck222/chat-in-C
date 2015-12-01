@@ -8,9 +8,12 @@
 #define SERVERPORT 9000
 #define BUFSIZE    512
 
-typedef struct testInt{
-	int data;
-}testInt;
+typedef struct clientNode{
+	SOCKET client_sock;
+	SOCKADDR_IN clientaddr;
+	int addrlen;
+	clientNode* link;
+}clientNode;
 
 // 소켓 함수 오류 출력 후 종료
 void err_quit(char *msg)
@@ -42,17 +45,17 @@ void err_display(char *msg)
 // 클라이언트와 데이터 통신
 DWORD WINAPI SendClient(LPVOID arg)
 {
-	SOCKET* client_sock = (SOCKET*)arg;
+	//SOCKADDR_IN clientaddr[2];
+	//int addrlen[2];
+	clientNode* client = (clientNode*)arg;
 	int retval;
-	SOCKADDR_IN clientaddr[2];
-	int addrlen[2];
 	char buf1[BUFSIZE+1];
 
 	// 클라이언트 정보 얻기
-	addrlen[0] = sizeof(clientaddr[0]);
-	addrlen[1] = sizeof(clientaddr[1]);
-	getpeername(client_sock[0], (SOCKADDR *)&clientaddr[0], &addrlen[0]);
-	getpeername(client_sock[1], (SOCKADDR *)&clientaddr[1], &addrlen[1]);
+	//addrlen[0] = sizeof(clientaddr[0]);
+	//getpeername(client_sock[1], (SOCKADDR *)&clientaddr[1], &addrlen[1]);
+	client->addrlen = sizeof(client->addrlen);
+	getpeername(client->client_sock, (SOCKADDR *)(&(client->clientaddr)), &(client->addrlen));
 	int len;
 
 	while(1){
@@ -63,14 +66,12 @@ DWORD WINAPI SendClient(LPVOID arg)
 
 		// '\n' 문자 제거
 		len = strlen(buf1);
-		if(buf1[len-1] == '\n')
-			buf1[len-1] = '\0';
-		if(strlen(buf1) == 0)
-			break;
+		if(buf1[len-1] == '\n')buf1[len-1] = '\0';
+		if(strlen(buf1) == 0)break;
 
 		// 데이터 보내기
-		retval = send(client_sock[0], buf1, strlen(buf1), 0);
-		retval = send(client_sock[1], buf1, strlen(buf1), 0);
+		//retval = send(client_sock[1], buf1, strlen(buf1), 0);
+		retval = send(client->client_sock, buf1, strlen(buf1), 0);
 		if(retval == SOCKET_ERROR){
 			err_display("send()");
 			break;
@@ -78,7 +79,7 @@ DWORD WINAPI SendClient(LPVOID arg)
 	}
 
 	// closesocket()
-	closesocket(client_sock[0]);
+	closesocket(client->client_sock);
 	/*
 	printf("[TCP 서버] 클라이언트 종료: IP 주소=%s, 포트 번호=%d\n",
 		inet_ntoa(clientaddr.sin_addr), ntohs(clientaddr.sin_port));
@@ -88,45 +89,35 @@ DWORD WINAPI SendClient(LPVOID arg)
 
 DWORD WINAPI RecvClient(LPVOID arg)
 {
-	SOCKET client_sock = (SOCKET)arg;
-	int retval;
-	SOCKADDR_IN clientaddr;
-	int addrlen;
+	//SOCKADDR_IN clientaddr;
+	//int addrlen;
 	//char buf1[BUFSIZE+1];
+	clientNode* client = (clientNode*)arg;
+	int retval;
 	char buf2[BUFSIZE+1];
 
 	// 클라이언트 정보 얻기
-	addrlen = sizeof(clientaddr);
-	getpeername(client_sock, (SOCKADDR *)&clientaddr, &addrlen);
-	//int len;
+	//addrlen = sizeof(clientaddr);
+	//getpeername(client_sock, (SOCKADDR *)&clientaddr, &addrlen);
+	client->addrlen = sizeof(client->addrlen);
+	getpeername(client->client_sock, (SOCKADDR *)(&(client->clientaddr)), &(client->addrlen));
+	
 
 	while(1){
 		// 데이터 받기
-		retval = recv(client_sock, buf2, BUFSIZE, 0);
+		//retval = recv(client_sock, buf2, BUFSIZE, 0);
+		retval = recv(client->client_sock, buf2, BUFSIZE, 0);
 		if(retval == SOCKET_ERROR){
 			err_display("recv()");
 			break;
-		}
-		else if(retval == 0)
-			break;
+		} else if(retval == 0)break;
 
 		// 받은 데이터 출력
 		buf2[retval] = '\0';
-		printf("[TCP/%s:%d] %s\n", inet_ntoa(clientaddr.sin_addr),
-			ntohs(clientaddr.sin_port), buf2);
+		printf("[TCP/%s:%d] %s\n", inet_ntoa(client->clientaddr.sin_addr), ntohs(client->clientaddr.sin_port), buf2);
 	}
 	return 0;
 }
-
-DWORD WINAPI test1Thread(LPVOID arg){
-	testInt* test = (testInt*)arg;
-	int i = 0;
-	while(1){
-		printf("1 Thread %d\n", test->data);
-	}
-	return 0;
-}
-
 
 int main(int argc, char *argv[])
 {
@@ -155,42 +146,40 @@ int main(int argc, char *argv[])
 	if(retval == SOCKET_ERROR) err_quit("listen()");
 
 	// 데이터 통신에 사용할 변수
-	SOCKET client_sock[2];
-	SOCKADDR_IN clientaddr[2];
-	int addrlen[2];
-	HANDLE sendThread[2];
-	HANDLE recvThread[2];
-	int i = 0;
-	/*
-	HANDLE test1;
-	testInt *testStruct=(testInt*)malloc(sizeof(testInt));
-	test1 = CreateThread(NULL, 0, test1Thread, (LPVOID)testStruct, 0, NULL);	
-	*/
-
+	//SOCKET client_sock[2];
+	//SOCKADDR_IN clientaddr[2];
+	//int addrlen[2];
+	clientNode* clients[100];
+	HANDLE sendThread[100];
+	HANDLE recvThread[100];
+	int i=0;
+	//while(1){printf("d");}
+		
 	while(1){
 		// accept()
-		addrlen[i] = sizeof(clientaddr);
-		client_sock[i] =accept(listen_sock, (SOCKADDR *)&clientaddr[i], &addrlen[i]);
-		if(client_sock[i] == INVALID_SOCKET){
+		//addrlen[i] = sizeof(clientaddr);
+		//client_sock[i] =accept(listen_sock, (SOCKADDR *)&clientaddr[i], &addrlen[i]);
+		clients[0] = (clientNode*)malloc(sizeof(clientNode));
+		clients[0]->addrlen = sizeof(clients[i]->addrlen);
+		clients[0]->client_sock = accept(listen_sock, (SOCKADDR *)&(clients[0]->clientaddr), &clients[0]->addrlen);
+		
+		if(clients[1]->client_sock == INVALID_SOCKET){
 			err_display("accept()");
 			break;
 		}
-
+		while(1){printf("d");};
 		// 접속한 클라이언트 정보 출력
-		printf("\n[TCP 서버] 클라이언트 접속: IP 주소=%s, 포트 번호=%d\n",
-			inet_ntoa(clientaddr[i].sin_addr), ntohs(clientaddr[i].sin_port));
+		printf("\n[TCP 서버] 클라이언트 접속: IP 주소=%s, 포트 번호=%d\n", inet_ntoa(clients[i]->clientaddr.sin_addr), ntohs(clients[i]->clientaddr.sin_port));
 
-		send(client_sock[i], "hello", 5, 0);
+		//send(client_sock[i], "hello", 5, 0);
 
 		// 스레드 생성
-		sendThread[i] = CreateThread(NULL, 0, SendClient, (LPVOID)client_sock, 0, NULL);
-		recvThread[i] = CreateThread(NULL, 0, RecvClient, (LPVOID)client_sock, 0, NULL);
-		if(sendThread == NULL && recvThread == NULL) { closesocket(client_sock[i]); }
+		sendThread[0] = CreateThread(NULL, 0, SendClient, (LPVOID)clients, 0, NULL);
+		recvThread[0] = CreateThread(NULL, 0, RecvClient, (LPVOID)clients, 0, NULL);
+		if(sendThread == NULL && recvThread == NULL) { closesocket(clients[i]->client_sock); }
 		//else { CloseHandle(recvThread[0]);CloseHandle(sendThread[0]);CloseHandle(recvThread[1]);CloseHandle(sendThread[1]); }
 		i++;
 	}
-	
-
 	// closesocket()
 	closesocket(listen_sock);
 
