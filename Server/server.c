@@ -15,6 +15,12 @@ typedef struct clientNode{
 	clientNode* link[3];
 }clientNode;
 
+typedef struct roomNode{
+	clientNode roomClient[5];
+	int roomNumber;
+	int numOfClient;
+}roomNode;
+
 // 소켓 함수 오류 출력 후 종료
 void err_quit(char *msg)
 {
@@ -102,19 +108,29 @@ int main(int argc, char *argv[])
 
 	// 데이터 통신에 사용할 변수
 	clientNode* clients[3];
+	roomNode* room[5];
 	HANDLE chatThread[3];
 	int numOfClient=0;
 	int j=0;
 	int numOfLink = 0;
-//	int numOfClient = 0;
+	char sendRoom[BUFSIZE+1] = "방을 선택해주세요 (0~4)\0";
+	char selectRoomNum[BUFSIZE+1];
 	for(int a=0; a<3; a++)clients[a] = NULL;
-	
+	for(int a=0; a<5; a++)room[a] = (roomNode*)malloc(sizeof(roomNode));
+
 	while(1){
 		// accept()
 		clients[numOfClient] = (clientNode*)malloc(sizeof(clientNode));
 		clients[numOfClient]->addrlen = sizeof(SOCKADDR_IN);
 		clients[numOfClient]->client_sock = accept(listen_sock, (SOCKADDR *)&(clients[numOfClient]->clientaddr), &clients[numOfClient]->addrlen);
-//		numOfClient++;//클라이언트 개수 증가
+
+		retval = send(clients[numOfClient]->client_sock, sendRoom, strlen(sendRoom), 0);
+		if(retval == SOCKET_ERROR){
+			err_display("send()");
+			break;
+		}
+
+		retval = recv(clients[numOfClient]->client_sock, selectRoomNum, BUFSIZE, 0);
 
 		while(clients[j] != NULL && j < 3){
 			for(int k=0; k<3; k++){
