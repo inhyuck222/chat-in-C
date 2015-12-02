@@ -41,7 +41,7 @@ DWORD WINAPI SendClient(LPVOID arg)
 	int retval;
 	SOCKADDR_IN clientaddr;
 	int addrlen;
-	char buf1[BUFSIZE+1];
+	char buf[BUFSIZE+1];
 
 	// 클라이언트 정보 얻기
 	addrlen = sizeof(clientaddr);
@@ -51,18 +51,18 @@ DWORD WINAPI SendClient(LPVOID arg)
 	while(1){
 		// 데이터 입력
 		printf("\n[보낼 데이터] ");
-		if(fgets(buf1, BUFSIZE+1, stdin) == NULL)
+		if(fgets(buf, BUFSIZE+1, stdin) == NULL)
 			break;
 
 		// '\n' 문자 제거
-		len = strlen(buf1);
-		if(buf1[len-1] == '\n')
-			buf1[len-1] = '\0';
-		if(strlen(buf1) == 0)
+		len = strlen(buf);
+		if(buf[len-1] == '\n')
+			buf[len-1] = '\0';
+		if(strlen(buf) == 0)
 			break;
 
 		// 데이터 보내기
-		retval = send(client_sock, buf1, strlen(buf1), 0);
+		retval = send(client_sock, buf, strlen(buf), 0);
 		if(retval == SOCKET_ERROR){
 			err_display("send()");
 			break;
@@ -71,8 +71,7 @@ DWORD WINAPI SendClient(LPVOID arg)
 
 	// closesocket()
 	closesocket(client_sock);
-	printf("[TCP 서버] 클라이언트 종료: IP 주소=%s, 포트 번호=%d\n",
-		inet_ntoa(clientaddr.sin_addr), ntohs(clientaddr.sin_port));
+	printf("[TCP 서버] 클라이언트 종료: IP 주소=%s, 포트 번호=%d\n", inet_ntoa(clientaddr.sin_addr), ntohs(clientaddr.sin_port));
 
 	return 0;
 }
@@ -84,7 +83,7 @@ DWORD WINAPI RecvClient(LPVOID arg)
 	SOCKADDR_IN clientaddr;
 	int addrlen;
 	//char buf1[BUFSIZE+1];
-	char buf2[BUFSIZE+1];
+	char buf[BUFSIZE+1];
 
 	// 클라이언트 정보 얻기
 	addrlen = sizeof(clientaddr);
@@ -93,7 +92,7 @@ DWORD WINAPI RecvClient(LPVOID arg)
 
 	while(1){
 		// 데이터 받기
-		retval = recv(client_sock, buf2, BUFSIZE, 0);
+		retval = recv(client_sock, buf, BUFSIZE, 0);
 		if(retval == SOCKET_ERROR){
 			err_display("recv()");
 			break;
@@ -102,9 +101,8 @@ DWORD WINAPI RecvClient(LPVOID arg)
 			break;
 
 		// 받은 데이터 출력
-		buf2[retval] = '\0';
-		printf("[TCP/%s:%d] %s\n", inet_ntoa(clientaddr.sin_addr),
-			ntohs(clientaddr.sin_port), buf2);
+		buf[retval] = '\0';
+		printf("[TCP/%s:%d] %s\n", inet_ntoa(clientaddr.sin_addr), ntohs(clientaddr.sin_port), buf);
 	}
 
 	return 0;
@@ -135,15 +133,29 @@ int main(int argc, char *argv[])
 	// 데이터 통신에 사용할 변수
 	char buf[BUFSIZE+1];
 	int len;
+
+	retval = recv(sock, buf, BUFSIZE, 0);
+	buf[retval] = '\0';
+		printf("%s\n", buf);
+
+	//printf("\n[보낼 데이터] ");
+	if(fgets(buf, BUFSIZE+1, stdin) == NULL);
+
+	// '\n' 문자 제거
+	len = strlen(buf);
+	if(buf[len-1] == '\n')buf[len-1] = '\0';
+	if(strlen(buf) == 0)
+
+	// 데이터 보내기
+	retval = send(sock, buf, strlen(buf), 0);
+
 	HANDLE sendThread;
 	HANDLE recvThread;
 
-	sendThread = CreateThread(NULL, 0, SendClient,
-		(LPVOID)sock, 0, NULL);
-	recvThread = CreateThread(NULL, 0, RecvClient,
-		(LPVOID)sock, 0, NULL);
-//WHILE:
-	while(sendThread != NULL && recvThread != NULL);// { goto WHILE; }
+	sendThread = CreateThread(NULL, 0, SendClient, (LPVOID)sock, 0, NULL);
+	recvThread = CreateThread(NULL, 0, RecvClient, (LPVOID)sock, 0, NULL);
+
+	while(sendThread != NULL && recvThread != NULL);
 
 	if(sendThread == NULL && recvThread == NULL) { closesocket(sock); }
 	else { CloseHandle(recvThread);CloseHandle(sendThread); }
