@@ -131,23 +131,22 @@ int main(int argc, char *argv[])
 	if(retval == SOCKET_ERROR) err_quit("connect()");
 
 	// 데이터 통신에 사용할 변수
-	char buf[BUFSIZE+1];
+	char recvBuf[BUFSIZE+1];
+	char sendBuf[BUFSIZE+1];
 	int len;
 
-	retval = recv(sock, buf, BUFSIZE, 0);
-	buf[retval] = '\0';
-		printf("%s\n", buf);
+	retval = recv(sock, recvBuf, BUFSIZE, 0);
+	recvBuf[retval] = '\0';
+	printf("%s\n", recvBuf);
 
-	//printf("\n[보낼 데이터] ");
-	if(fgets(buf, BUFSIZE+1, stdin) == NULL);
+	if(fgets(sendBuf, BUFSIZE+1, stdin) == NULL);
 
 	// '\n' 문자 제거
-	len = strlen(buf);
-	if(buf[len-1] == '\n')buf[len-1] = '\0';
-	if(strlen(buf) == 0)
+	len = strlen(sendBuf);
+	if(sendBuf[len-1] == '\n')sendBuf[len-1] = '\0';
 
 	// 데이터 보내기
-	retval = send(sock, buf, strlen(buf), 0);
+	retval = send(sock, sendBuf, strlen(sendBuf), 0);
 
 	HANDLE sendThread;
 	HANDLE recvThread;
