@@ -63,26 +63,6 @@ DWORD WINAPI roomProcess(LPVOID arg){
 		else { CloseHandle(chatThread); }
 	}
 
-	/*while(1){
-		
-		printf("R : send start\n");
-		//if(room->roomClient[numOfClient] != NULL)
-		retval = send(client->client_sock, check, strlen(check), 0);
-		printf("R : send end\n");
-		if(retval == SOCKET_ERROR){
-			err_display("send()");
-			break;
-		}
-		printf("R : recv start\n");
-		retval = recv(client->client_sock, check, BUFSIZE, 0);
-		printf("R : recv end\n");
-		chatThread[numOfClient] = CreateThread(NULL, 0, serverProcess, (LPVOID)room->roomClient[numOfClient], 0, NULL);
-		if(chatThread[numOfClient] == NULL) { closesocket(room->roomClient[numOfClient]->client_sock); }
-		else { CloseHandle(chatThread[numOfClient]); }
-		numOfClient++;
-		if(numOfClient == 5)break;
-		
-	}*/
 	return 0;
 }
 
@@ -91,34 +71,53 @@ DWORD WINAPI serverProcess(LPVOID arg){
 	clientNode* client = (clientNode*)arg;
 
 	int retval;
+	int numOfLinkT = 0;
+	int blockIdx = 0;
+	int myIdx = 0;
+	int numOfLinkedC = 0;
 	char buf[BUFSIZE+1];
-	int numOfLink = 0;
 	client->addrlen = sizeof(client->clientaddr);
 	getpeername(client->client_sock, (SOCKADDR *)(&(client->clientaddr)), &(client->addrlen));
 
 
 	while(1){
-		printf("P : recv start(%d)\n",client->clientNum);
 		retval = recv(client->client_sock, buf, BUFSIZE, 0);
-		printf("P : recv end(%d)\n",client->clientNum);
 		if(retval == SOCKET_ERROR){
 			err_display("recv()");
 			break;
 		} else if(retval == 0)break;
+		
+		if(buf[0] == '/'){
+			while(client->link[blockIdx] != NULL){
+				if(buf[1] -'0' == client->link[blockIdx]->clientNum){
+					while(client->link[blockIdx]->link[myIdx] != NULL){
+						if(client->link[blockIdx]->link[myIdx]->clientNum == client->clientNum){
+							client->link[blockIdx]->link[myIdx] = NULL;
+						}
+						myIdx++;
+					}
+				}
+				blockIdx++;
+			}
+			buf[0] = '\0';
+		}
 
 		buf[retval] = '\0';
-		printf("P : send start(%d)\n",client->clientNum);
-		//retval = send(client->link->client_sock, buf, strlen(buf), 0);
-		while(client->link[numOfLink] != NULL && numOfLink < 4){
-			retval = send(client->link[numOfLink++]->client_sock, buf, strlen(buf), 0);
-			printf("P : send end(%d)\n",client->clientNum);
+		
+		if(buf[0] != '\0'){
+			while(numOfLinkedC < 2){
+				if(client->link[numOfLinkedC] != NULL)retval = send(client->link[numOfLinkedC]->client_sock, buf, strlen(buf), 0);
+				numOfLinkedC++;
+				//break;
+			}
 		}
 		if(retval == SOCKET_ERROR){
 			err_display("send()");
 			break;
 		}
-		numOfLink = 0;
 		
+		numOfLinkedC = 0;
+		numOfLinkT = 0;
 	}
 	closesocket(client->client_sock);
 	return 0;
@@ -210,35 +209,14 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		/*
-		while(clients[j] != NULL && j < 5){
-		for(int k=0; k<5; k++){
-		if(clients[k] != NULL && clients[j]->client_sock != clients[k]->client_sock){
-		clients[j]->link[numOfLink] = clients[k];
-		numOfLink++;
-		}
-		}
-		numOfLink = 0;
-		j++;
-		}
-		j=0;
-		*/
-
 		// 접속한 클라이언트 정보 출력
 		printf("\n[TCP 서버] 클라이언트 접속: IP 주소=%s, 포트 번호=%d\n", inet_ntoa(clients[numOfClient]->clientaddr.sin_addr), ntohs(clients[numOfClient]->clientaddr.sin_port));
 
-		/*
-		if(isCreated[selectRoomNum] != true && numOfThread < 5){
-			isCreated[selectRoomNum] = true;
-			chatThread[numOfThread++] = CreateThread(NULL, 0, roomProcess, (LPVOID)room[selectRoomNum], 0, NULL);
-		}
-		*/
 		if(room[selectRoomNum]->numOfCinRoom == 3 && numOfThread < 5){
-			//isCreated[selectRoomNum] = true;
+
 			chatThread[numOfThread++] = CreateThread(NULL, 0, roomProcess, (LPVOID)room[selectRoomNum], 0, NULL);
 		}
 		if(chatThread[numOfThread] == NULL) { closesocket(clients[numOfClient]->client_sock); }
-//		else { CloseHandle(chatThread[numOfThread-1]); }
 
 		numOfClient++;
 	}
